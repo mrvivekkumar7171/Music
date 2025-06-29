@@ -1,2 +1,8 @@
 cookies.txt
-assets/music/
+anaconda_projects
+.ipynb_checkpoints
+liked_music.csv
+liked_music.xlsx
+liked_music.json
+main.py
+new.ipynb
