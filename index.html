@@ -189,6 +189,98 @@
     0%, 100% { height: 5px; }
     50% { height: 20px; }
     }
+
+    @media (max-width: 500px) {
+        button {
+            font-size: 14px;
+            padding: 6px 10px;
+        }
+        #volume-feedback {
+            font-size: 14px;
+        }
+    }
+
+    #loading-spinner {
+        display: none;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        font-size: 18px;
+        transform: translate(-50%, -50%);
+        margin-top: 5px;
+    }
+    #loading-spinner.show {
+        display: block;
+    }
+
+    /* Help Overlay Styling */
+    #helpOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(18, 18, 18, 0.9);
+    color: #fff;
+    display: none;
+    z-index: 10000;
+    overflow-y: auto;
+    font-family: 'Segoe UI', sans-serif;
+    }
+
+    #helpOverlay.visible {
+    display: block;
+    animation: fadeIn 0.3s ease-in-out;
+    }
+
+    #helpContent {
+    max-width: 600px;
+    margin: 60px auto;
+    background: #252830;
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 0 20px rgba(21, 129, 245, 0.5);
+    }
+
+    #helpContent h2 {
+    color: #1581f5;
+    margin-bottom: 20px;
+    text-align: center;
+    }
+
+    #helpContent ul {
+    list-style: none;
+    padding-left: 0;
+    line-height: 1.8;
+    }
+
+    #helpContent ul li {
+    padding: 6px 0;
+    border-bottom: 1px solid #444;
+    }
+
+    #helpContent ul li:last-child {
+    border-bottom: none;
+    }
+
+    #helpClose {
+    position: absolute;
+    top: 20px;
+    right: 30px;
+    font-size: 30px;
+    color: #ccc;
+    cursor: pointer;
+    transition: color 0.3s;
+    }
+
+    #helpClose:hover {
+    color: #fff;
+    }
+
+    @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+    }
     </style>
     <!--Keyboard Shortcuts (optional) 
     Add Progressive Web App (PWA), a web application that behaves like 
@@ -197,260 +289,361 @@
     emotion and language filter:-->
 </head>
 <body>
+    <div id="player-container">
+        <h2>Music Player</h2>
+        <p id="track-title">Loading...</p>
+        <div id="loading-spinner">⏳ Loading...</div>
 
-    <h2>Music Player</h2>
-    <p id="track-title">Loading...</p>
+        <audio id="audio-player" controls autoplay></audio>
+        <div id="volume-feedback">🔊 40%</div>
+        
+        <div class="controls">
+            <button id="shuffleBtn" aria-label="Shuffle" title="Shuffle" style="color: white;">🔀 On</button>
+            <button id="prevBtn" aria-label="Previous" title="Previous">⏮️</button>
+            <button id="playPauseBtn" aria-label="Play/Pause" title="Play/Pause">▶️</button>
+            <button id="nextBtn" aria-label="Next" title="Next">⏭️</button>
+            <button id="repeatBtn" aria-label="Repeat" title="Repeat" style="color: white;">🔁 On</button>
+        </div>
+    </div>
+    <!-- <div class="equalizer">
+        <div></div><div></div><div></div><div></div><div></div><div></div>
+    </div> -->
 
-    <audio id="audio-player" controls autoplay></audio>
-    <div id="volume-feedback">🔊 40%</div>
-    
-    <div class="controls">
-        <button id="shuffleBtn" aria-label="Shuffle" title="Shuffle" style="color: white;">🔀 On</button>
-        <button id="prevBtn" aria-label="Previous" title="Previous">⏮️</button>
-        <button id="playPauseBtn" aria-label="Play/Pause" title="Play/Pause">▶️</button>
-        <button id="nextBtn" aria-label="Next" title="Next">⏭️</button>
-        <button id="repeatBtn" aria-label="Repeat" title="Repeat" style="color: white;">🔁 On</button>
+    <div id="helpOverlay">
+    <div id="helpClose">&times;</div>
+    <div id="helpContent">
+        <h2>🎧 Keyboard Shortcuts Help</h2>
+        <ul>
+        <li><b>H</b> – Show/Hide Help Overlay</li>
+        <li><b>Space</b> – Play / Pause</li>
+        <li><b>← / →</b> – Seek Backward / Forward</li>
+        <li><b>↑ / ↓</b> – Volume Up / Down</li>
+        <li><b>N</b> – Next Track</li>
+        <li><b>P</b> – Previous Track</li>
+        <li><b>S</b> – Toggle Shuffle</li>
+        <li><b>R</b> – Toggle Repeat</li>
+        <li><b>Esc</b> – Close Help Overlay</li>
+        </ul>
+    </div>
     </div>
 
-<!-- <div class="equalizer">
-    <div></div><div></div><div></div><div></div><div></div><div></div>
-</div> -->
-<div class="wave-ring">🔊</div>
+    <div class="wave-ring">🔊</div>
 
     <script>
-    let isShuffle = true;
-    let isRepeat = true;
-    let currentTrack = 0;
-    let playedIndices = new Set();
+        let isShuffle = true;
+        let isRepeat = true;
+        let currentTrack = 0;
+        let playedIndices = new Set();
 
-    // Button elements
-    const audioPlayer = document.getElementById('audio-player');
-    const trackTitle = document.getElementById('track-title');
-    const shuffleBtn = document.getElementById("shuffleBtn");
-    const repeatBtn = document.getElementById("repeatBtn");
-    
-    const baseURL = "https://archive.org/download/70s-special-mashup-devotees-insanos-chand-mera-dil-chadhti-jawani-meri-bheegi-bheegi-si-compressed/";
-    const playlist = [
-        {
-            audio_id: "001",
-            file_name: "%27Abhi%20Toh%20Party%20Shuru%20Hui%20Hai%27%20FULL%20VIDEO%20Song%20%EF%BD%9C%20Khoobsurat%20%EF%BD%9C%20Badshah%20%EF%BD%9C%20Aastha_compressed.webm",
-            emotion:"Sad",
-            language:"Hindi"
-        },
-        {
-            audio_id: "0021",
-            file_name: "%23Video%20%EF%BD%9C%20%E0%A4%B9%E0%A4%BF%E0%A4%B0%E0%A5%8B%E0%A4%87%E0%A4%A8%20%EF%BD%9C%20%23Heroine%20with%20Lyrics%20%EF%BD%9C%20%23Neelkamal%20Singh%20New%20Song%20%EF%BD%9C%20Bhojpuri%20Gaana_compressed.webm",
-            emotion:"Sad",
-            language:"Hindi"
-        },
-        {
-            audio_id: "0031",
-            file_name: "%27Sooraj%20Dooba%20Hain%27%20FULL%20VIDEO%20SONG%20%EF%BD%9C%20Arijit%20singh%20Aditi%20Singh%20Sharma%20%EF%BD%9C%20T-SERIES_compressed.webm",
-            emotion:"Sad",
-            language:"Hindi"
-        },
-        {
-            audio_id: "0049",
-            file_name: "%27Tu%20Jo%20Mila%27%20VIDEO%20Song%20-%20K.K.%20Pritam%20%EF%BD%9C%20Salman%20Khan%2C%20Nawazuddin%2C%20Harshaali%20%EF%BD%9C%20Bajrangi%20Bhaijaan_compressed.webm",
-            emotion:"Sad",
-            language:"Hindi"
-        },
-        {
-            audio_id: "0054",
-            file_name: "3%20-%20Why%20This%20Kolaveri%20Di%20Official%20Video%20%EF%BD%9C%20Dhanush%20%EF%BD%9C%20Anirudh%20Ravichander%20%EF%BD%9C%20Shruti%20Haasan_compressed.webm",
-            emotion:"Sad",
-            language:"Hindi"
-        },
-        {
-            audio_id: "0060",
-            file_name: "90%27s%20Retro%20Mashup%20%EF%BD%9C%20Dj%20Parth%20%EF%BD%9C%20Sunix%20Thakor%20%EF%BD%9C%20Old%20Song%20Mashup%20%EF%BD%9C%20Music%20History%20Records_compressed.webm",
-            emotion:"Sad",
-            language:"Hindi"
-        },
-        {
-            audio_id: "0074",
-            file_name: "70s%20Special%20Mashup%E2%96%B6%20Devotees%20Insanos%20%EF%BD%9C%20Chand%20Mera%20Dil%20%EF%BD%9C%20Chadhti%20Jawani%20%EF%BD%9C%20Meri%20Bheegi%20Bheegi%20Si_compressed.webm",
-            emotion:"Sad",
-            language:"Hindi"
-        },
-        {
-            audio_id: "0080",
-            file_name: "AMBARSARIYA_compressed.webm",
-            emotion:"Sad",
-            language:"Hindi"
-        },
-        {
-            audio_id: "0094",
-            file_name: "Aadat%20%28From%20%EF%BC%82Kalyug%EF%BC%82%29_compressed.webm",
-            emotion:"Sad",
-            language:"Hindi"
-        },
-        {
-            audio_id: "0102",
-            file_name: "Aahun%20Aahun%20%28Lyrical%20Full%20Song%29%20%EF%BD%9C%20Love%20Aaj%20Kal%20%EF%BD%9C%20Saif%20Ali%20Khan%20%26%20Deepika%20Padukone%20%EF%BD%9C%20Pritam_compressed.webm",
-            emotion:"Sad",
-            language:"Hindi"
-        }
-    ];
-
-    function decodeTitle(fileName) {
-        try {
-            // Decode URI and remove `_compressed.webm` or similar suffix
-            const decoded = decodeURIComponent(fileName);
-            return decoded.replace(/_compressed\.webm$/i, '').replace(/\.webm$/i, '');
-        } catch (e) {
-            return "Unknown Title";
-        }
-    }
-    
-    function unloadAudio() {
-    audioPlayer.pause(); // stops any playing
-    audioPlayer.removeAttribute('src'); // removes the current source
-    audioPlayer.load(); // tells browser to reset the player
-    }
-    
-    function loadTrack(index) {
-        unloadAudio();  // 🔁 Unload previous track to free memory
-        const fileName = playlist[index].file_name;
-        const url = baseURL + fileName;
-        currentTrack = index;
-        trackTitle.textContent = decodeTitle(fileName);
-        audioPlayer.src = url;
-        audioPlayer.play();
-        trackTitle.classList.add("playing"); // 💡 add glowing effect
-    }
-    
-    function nextTrack() {
-        if (isShuffle) {
-            if (playedIndices.size >= playlist.length) {
-                if (isRepeat) playedIndices.clear();
-                else return;
+        // Button elements
+        const audioPlayer = document.getElementById('audio-player');
+        const trackTitle = document.getElementById('track-title');
+        const shuffleBtn = document.getElementById("shuffleBtn");
+        const repeatBtn = document.getElementById("repeatBtn");
+        
+        const baseURL = "https://archive.org/download/70s-special-mashup-devotees-insanos-chand-mera-dil-chadhti-jawani-meri-bheegi-bheegi-si-compressed/";
+        const playlist = [
+            {
+                audio_id: "001",
+                file_name: "%27Abhi%20Toh%20Party%20Shuru%20Hui%20Hai%27%20FULL%20VIDEO%20Song%20%EF%BD%9C%20Khoobsurat%20%EF%BD%9C%20Badshah%20%EF%BD%9C%20Aastha_compressed.webm",
+                emotion:"Sad",
+                language:"Hindi"
+            },
+            {
+                audio_id: "0021",
+                file_name: "%23Video%20%EF%BD%9C%20%E0%A4%B9%E0%A4%BF%E0%A4%B0%E0%A5%8B%E0%A4%87%E0%A4%A8%20%EF%BD%9C%20%23Heroine%20with%20Lyrics%20%EF%BD%9C%20%23Neelkamal%20Singh%20New%20Song%20%EF%BD%9C%20Bhojpuri%20Gaana_compressed.webm",
+                emotion:"Sad",
+                language:"Hindi"
+            },
+            {
+                audio_id: "0031",
+                file_name: "%27Sooraj%20Dooba%20Hain%27%20FULL%20VIDEO%20SONG%20%EF%BD%9C%20Arijit%20singh%20Aditi%20Singh%20Sharma%20%EF%BD%9C%20T-SERIES_compressed.webm",
+                emotion:"Sad",
+                language:"Hindi"
+            },
+            {
+                audio_id: "0049",
+                file_name: "%27Tu%20Jo%20Mila%27%20VIDEO%20Song%20-%20K.K.%20Pritam%20%EF%BD%9C%20Salman%20Khan%2C%20Nawazuddin%2C%20Harshaali%20%EF%BD%9C%20Bajrangi%20Bhaijaan_compressed.webm",
+                emotion:"Sad",
+                language:"Hindi"
+            },
+            {
+                audio_id: "0054",
+                file_name: "3%20-%20Why%20This%20Kolaveri%20Di%20Official%20Video%20%EF%BD%9C%20Dhanush%20%EF%BD%9C%20Anirudh%20Ravichander%20%EF%BD%9C%20Shruti%20Haasan_compressed.webm",
+                emotion:"Sad",
+                language:"Hindi"
+            },
+            {
+                audio_id: "0060",
+                file_name: "90%27s%20Retro%20Mashup%20%EF%BD%9C%20Dj%20Parth%20%EF%BD%9C%20Sunix%20Thakor%20%EF%BD%9C%20Old%20Song%20Mashup%20%EF%BD%9C%20Music%20History%20Records_compressed.webm",
+                emotion:"Sad",
+                language:"Hindi"
+            },
+            {
+                audio_id: "0074",
+                file_name: "70s%20Special%20Mashup%E2%96%B6%20Devotees%20Insanos%20%EF%BD%9C%20Chand%20Mera%20Dil%20%EF%BD%9C%20Chadhti%20Jawani%20%EF%BD%9C%20Meri%20Bheegi%20Bheegi%20Si_compressed.webm",
+                emotion:"Sad",
+                language:"Hindi"
+            },
+            {
+                audio_id: "0080",
+                file_name: "AMBARSARIYA_compressed.webm",
+                emotion:"Sad",
+                language:"Hindi"
+            },
+            {
+                audio_id: "0094",
+                file_name: "Aadat%20%28From%20%EF%BC%82Kalyug%EF%BC%82%29_compressed.webm",
+                emotion:"Sad",
+                language:"Hindi"
+            },
+            {
+                audio_id: "0102",
+                file_name: "Aahun%20Aahun%20%28Lyrical%20Full%20Song%29%20%EF%BD%9C%20Love%20Aaj%20Kal%20%EF%BD%9C%20Saif%20Ali%20Khan%20%26%20Deepika%20Padukone%20%EF%BD%9C%20Pritam_compressed.webm",
+                emotion:"Sad",
+                language:"Hindi"
             }
-            let nextIndex;
-            do {
-            nextIndex = Math.floor(Math.random() * playlist.length);
-        } while (playedIndices.has(nextIndex));
-            playedIndices.add(nextIndex);
-            loadTrack(nextIndex);
-        } else {
-            if (currentTrack < playlist.length - 1) {
-                loadTrack(currentTrack + 1);
-            } else if (isRepeat) {
-                loadTrack(0);
+        ];
+
+        function decodeTitle(fileName) {
+            try {
+                // Decode URI and remove `_compressed.webm` or similar suffix
+                const decoded = decodeURIComponent(fileName);
+                return decoded.replace(/_compressed\.webm$/i, '').replace(/\.webm$/i, '');
+            } catch (e) {
+                return "Unknown Title";
             }
         }
-    }
-    
-    function prevTrack() {
-        currentTrack = (currentTrack - 1 + playlist.length) % playlist.length;
-        loadTrack(currentTrack);
-    }
-    
-    function togglePlayPause() {
-        if (audioPlayer.paused) {
-            audioPlayer.play();
+        
+        function unloadAudio() {
+        audioPlayer.pause(); // stops any playing
+        audioPlayer.removeAttribute('src'); // removes the current source
+        audioPlayer.load(); // tells browser to reset the player
+        }
+        
+        function loadTrack(index) {
+            unloadAudio();  // 🔁 Unload previous track to free memory
+            const fileName = playlist[index].file_name;
+            const url = baseURL + fileName;
+            currentTrack = index;
+            trackTitle.textContent = decodeTitle(fileName);
+            audioPlayer.src = url;
+            audioPlayer.play().then(() => {
+                fadeInVolume(parseFloat(localStorage.getItem("volume")) || 0.4);
+            });
+            updateMediaSession(trackTitle.textContent);
             trackTitle.classList.add("playing"); // 💡 add glowing effect
-        } else {
-            audioPlayer.pause();
         }
-    }
-
-    
-    shuffleBtn.addEventListener("click", () => {
-        isShuffle = !isShuffle;
-        shuffleBtn.classList.toggle("active");
-        document.getElementById("shuffleBtn").textContent = isShuffle ? "🔀 On" : "🔀 Off";
-        playedIndices.clear();
-    });
-    
-    repeatBtn.addEventListener("click", () => {
-        isRepeat = !isRepeat;
-        repeatBtn.classList.toggle("active");
-        document.getElementById("repeatBtn").textContent = isRepeat ? "🔁 On" : "🔁 Off";    });
-        document.getElementById("nextBtn").addEventListener("click", nextTrack);
-        document.getElementById("prevBtn").addEventListener("click", prevTrack);
-        document.getElementById("playPauseBtn").addEventListener("click", togglePlayPause);
-    
-    audioPlayer.addEventListener("pause", () => {
-        trackTitle.classList.remove("playing");
-        document.querySelector('.wave-ring').style.visibility = 'hidden';
-    });
-
-    audioPlayer.addEventListener("play", () => {
-        document.querySelector('.wave-ring').style.visibility = 'visible';
-    });
-
-    audioPlayer.addEventListener("ended", () => {
-        trackTitle.classList.remove("playing");
-        document.querySelector('.wave-ring').style.visibility = 'hidden';
-        if (isRepeat && !isShuffle) {
-            loadTrack(currentTrack); // repeat same song
-        } else if (isShuffle && isRepeat) {
-            playedIndices.clear(); // infinite shuffle
-            nextTrack();
-        } else {
-            nextTrack();
+        
+        function nextTrack() {
+            if (isShuffle) {
+                if (playedIndices.size >= playlist.length) {
+                    if (isRepeat) playedIndices.clear();
+                    else return;
+                }
+                let nextIndex;
+                do {
+                nextIndex = Math.floor(Math.random() * playlist.length);
+            } while (playedIndices.has(nextIndex));
+                playedIndices.add(nextIndex);
+                loadTrack(nextIndex);
+            } else {
+                if (currentTrack < playlist.length - 1) {
+                    loadTrack(currentTrack + 1);
+                } else if (isRepeat) {
+                    loadTrack(0);
+                }
+            }
         }
-    });
-
-    // Toggle equalizer visibility based on play/pause
-    function updateEqualizer(isPlaying) {
-        const equalizer = document.querySelector(".equalizer");
-        equalizer.style.visibility = isPlaying ? "visible" : "hidden";
-    }
-
-    // Hook into audio events
-    audioPlayer.addEventListener("play", () => updateEqualizer(true));
-    audioPlayer.addEventListener("pause", () => updateEqualizer(false));
-    audioPlayer.addEventListener("ended", () => updateEqualizer(false));
-
-    // Initial setup
-    window.addEventListener("DOMContentLoaded", () => {
-        audioPlayer.volume = 0.2; // default to 40% volume
-        shuffleBtn.classList.add("active");
-        repeatBtn.classList.add("active");
-        isShuffle = true;
-        isRepeat = true;
-        loadTrack(currentTrack);
-    });
-
-    function showVolumeFeedback(volume) {
-        const feedback = document.getElementById("volume-feedback");
-        if (!feedback) return;
-        const percent = Math.round(volume * 100);
-        feedback.textContent = `🔊 ${percent}%`;
-        feedback.classList.add("show");
-
-        // Hide after 1.2 seconds
-        clearTimeout(feedback._timeout);
-        feedback._timeout = setTimeout(() => {
-            feedback.classList.remove("show");
-        }, 1200);
-    }
-
-    document.addEventListener("keydown", (e) => {
-        if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", " "].includes(e.key)) {
-            e.preventDefault();
+        
+        function prevTrack() {
+            currentTrack = (currentTrack - 1 + playlist.length) % playlist.length;
+            loadTrack(currentTrack);
+        }
+        
+        function togglePlayPause() {
+            if (audioPlayer.paused) {
+                audioPlayer.play();
+                trackTitle.classList.add("playing"); // 💡 add glowing effect
+            } else {
+                audioPlayer.pause();
+            }
         }
 
-        if (e.code === "Space") {
-            togglePlayPause();
-        } else if (e.key.toLowerCase() === "n") {
-            nextTrack();
-        } else if (e.key.toLowerCase() === "p") {
-            prevTrack();
-        } else if (e.key === "ArrowLeft") {
-            audioPlayer.currentTime = Math.max(0, audioPlayer.currentTime - 10);
-        } else if (e.key === "ArrowRight") {
-            audioPlayer.currentTime = Math.min(audioPlayer.duration, audioPlayer.currentTime + 10);
-        } else if (e.key === "ArrowUp") {
-            audioPlayer.volume = Math.min(1, audioPlayer.volume + 0.1);
-            showVolumeFeedback(audioPlayer.volume);
-        } else if (e.key === "ArrowDown") {
-            audioPlayer.volume = Math.max(0, audioPlayer.volume - 0.1);
-            showVolumeFeedback(audioPlayer.volume);
+        
+        shuffleBtn.addEventListener("click", () => {
+            isShuffle = !isShuffle;
+            localStorage.setItem("shuffle", isShuffle);
+            shuffleBtn.classList.toggle("active");
+            shuffleBtn.setAttribute("aria-pressed", isShuffle); // ✅ Add this line
+            document.getElementById("shuffleBtn").textContent = isShuffle ? "🔀 On" : "🔀 Off";
+            playedIndices.clear();
+        });
+        
+        repeatBtn.addEventListener("click", () => {
+            isRepeat = !isRepeat;
+            localStorage.setItem("repeat", isRepeat);
+            repeatBtn.classList.toggle("active");
+            repeatBtn.setAttribute("aria-pressed", isRepeat); // ✅ Add this line
+            document.getElementById("repeatBtn").textContent = isRepeat ? "🔁 On" : "🔁 Off";    });
+            document.getElementById("nextBtn").addEventListener("click", nextTrack);
+            document.getElementById("prevBtn").addEventListener("click", prevTrack);
+            document.getElementById("playPauseBtn").addEventListener("click", togglePlayPause);
+        
+        audioPlayer.addEventListener("pause", () => {
+            trackTitle.classList.remove("playing");
+            document.querySelector('.wave-ring').style.visibility = 'hidden';
+        });
+
+        audioPlayer.addEventListener("play", () => {
+            document.querySelector('.wave-ring').style.visibility = 'visible';
+            trackTitle.classList.add("playing"); // 🔁 Add glow again on resume
+        });
+
+        audioPlayer.addEventListener("ended", () => {
+            trackTitle.classList.remove("playing");
+            document.querySelector('.wave-ring').style.visibility = 'hidden';
+            if (isRepeat && !isShuffle) {
+                loadTrack(currentTrack); // repeat same song
+            } else if (isShuffle && isRepeat) {
+                playedIndices.clear(); // infinite shuffle
+                nextTrack();
+            } else {
+                nextTrack();
+            }
+        });
+
+        // Toggle equalizer visibility based on play/pause
+        function updateEqualizer(isPlaying) {
+            const equalizer = document.querySelector(".equalizer");
+            equalizer.style.visibility = isPlaying ? "visible" : "hidden";
         }
-    });
+
+        // Hook into audio events
+        audioPlayer.addEventListener("play", () => updateEqualizer(true));
+        audioPlayer.addEventListener("pause", () => updateEqualizer(false));
+        audioPlayer.addEventListener("ended", () => updateEqualizer(false));
+
+        // Initial setup
+        window.addEventListener("DOMContentLoaded", () => {
+            audioPlayer.volume = 0.2; // default to 40% volume
+            shuffleBtn.classList.add("active");
+            repeatBtn.classList.add("active");
+            isShuffle = true;
+            isRepeat = true;
+            loadTrack(currentTrack);
+            // Load saved settings
+            audioPlayer.volume = parseFloat(localStorage.getItem('volume')) || 0.4;
+            isShuffle = localStorage.getItem('shuffle') === 'true';
+            isRepeat = localStorage.getItem('repeat') === 'true';
+
+            shuffleBtn.classList.toggle("active", isShuffle);
+            repeatBtn.classList.toggle("active", isRepeat);
+            shuffleBtn.textContent = isShuffle ? "🔀 On" : "🔀 Off";
+            repeatBtn.textContent = isRepeat ? "🔁 On" : "🔁 Off";
+        });
+
+        function showVolumeFeedback(volume) {
+            const feedback = document.getElementById("volume-feedback");
+            if (!feedback) return;
+            const percent = Math.round(audioPlayer.volume * 100);
+            feedback.textContent = `🔊 ${percent}%`;
+            feedback.classList.add("show");
+
+            // Hide after 1.2 seconds
+            clearTimeout(feedback._timeout);
+            feedback._timeout = setTimeout(() => {
+                feedback.classList.remove("show");
+            }, 1200);
+        }
+
+        document.addEventListener("keydown", (e) => {
+            if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", " "].includes(e.key)) {
+                e.preventDefault();
+            }
+
+            if (e.code === "Space") {
+                togglePlayPause();
+            } else if (e.key.toLowerCase() === "n") {
+                nextTrack();
+            } else if (e.key.toLowerCase() === "p") {
+                prevTrack();
+            } else if (e.key === "ArrowLeft") {
+                audioPlayer.currentTime = Math.max(0, audioPlayer.currentTime - 10);
+            } else if (e.key === "ArrowRight") {
+                audioPlayer.currentTime = Math.min(audioPlayer.duration, audioPlayer.currentTime + 10);
+            } else if (e.key === "ArrowUp") {
+                audioPlayer.volume = Math.min(1, audioPlayer.volume + 0.1);
+                localStorage.setItem("volume", audioPlayer.volume);
+                showVolumeFeedback(audioPlayer.volume);
+            } else if (e.key === "ArrowDown") {
+                audioPlayer.volume = Math.max(0, audioPlayer.volume - 0.1);
+                localStorage.setItem("volume", audioPlayer.volume);
+                showVolumeFeedback(audioPlayer.volume);
+            }
+        });
+
+        const container = document.getElementById('player-container');
+        container.addEventListener('dblclick', (e) => {
+            const { offsetX, target } = e;
+            const width = target.offsetWidth;
+            if (offsetX < width / 2) {
+                audioPlayer.currentTime = Math.max(0, audioPlayer.currentTime - 10);
+            } else {
+                audioPlayer.currentTime = Math.min(audioPlayer.duration, audioPlayer.currentTime + 10);
+            }
+        });
+
+        const helpOverlay = document.getElementById("helpOverlay");
+        const helpClose = document.getElementById("helpClose");
+
+        document.addEventListener("keydown", (e) => {
+        if (e.key.toLowerCase() === 'h') {
+            helpOverlay.classList.toggle("visible");
+        } else if (e.key === "Escape") {
+            helpOverlay.classList.remove("visible");
+        }
+        });
+
+        helpClose.addEventListener("click", () => {
+        helpOverlay.classList.remove("visible");
+        });
+
+        function fadeInVolume(targetVolume = 0.4, step = 0.02, interval = 50) {
+            audioPlayer.volume = 0;
+            const fade = setInterval(() => {
+                if (audioPlayer.volume < targetVolume) {
+                    audioPlayer.volume = Math.min(audioPlayer.volume + step, targetVolume);
+                } else {
+                    clearInterval(fade);
+                }
+            }, interval);
+        }
+
+        function updateMediaSession(title, artist = "TheSoftMax.com", album = "My Playlist") {
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.metadata = new MediaMetadata({
+            title: title,
+            artist: artist,
+            album: album,
+            artwork: [
+                { src: 'favicon.svg', sizes: '96x96', type: 'image/svg+xml' }
+            ]
+            });
+
+            navigator.mediaSession.setActionHandler('play', () => audioPlayer.play());
+            navigator.mediaSession.setActionHandler('pause', () => audioPlayer.pause());
+            navigator.mediaSession.setActionHandler('previoustrack', prevTrack);
+            navigator.mediaSession.setActionHandler('nexttrack', nextTrack);
+        }
+        }
+
+        audioPlayer.addEventListener("waiting", () => {
+            document.getElementById("loading-spinner").classList.add("show");
+        });
+        audioPlayer.addEventListener("playing", () => {
+            document.getElementById("loading-spinner").classList.remove("show");
+        });
     </script>
 </body>
 </html>
