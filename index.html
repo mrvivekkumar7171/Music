@@ -11,14 +11,17 @@
     <meta property="og:image" content="https://thesoftmax.com/assets/images/favicon/favicon.png" />
     <meta property="og:url" content="https://thesoftmax.com/" />
     <meta property="og:type" content="website" />
-    
+
+    <!-- icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+
     <!-- title and SEO -->
     <title>Music Player</title>
-
     <meta name="description" content="An immersive music player with shuffle, loop, and volume control features.">
     
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="icon" href="favicon.png" type="image/png"> <!-- Fallback for older browsers -->
     
     <!-- css -->
     <style>
@@ -63,7 +66,7 @@
         margin: 5px;
         border: none;
         border-radius: 8px;
-        background-color: #1581f5;
+        background-color: #252830;
         color: white;
         cursor: pointer;
         transition: background-color 0.3s;
@@ -83,10 +86,13 @@
         transition: opacity 0.3s, background-color 0.3s;
         }
         .controls button:hover {
-        background-color: #252830;
+        background-color: #666;
         }
         .controls button.active {
         opacity: 1;
+        }
+        .controls i {
+            color: white;
         }
 
     /* White glow animation */
@@ -110,7 +116,7 @@
         position: fixed;
         bottom: 20px;
         right: 20px;
-        background-color: #1581f5;
+        background-color: #252830;
         color: white;
         padding: 8px 16px;
         font-size: 16px;
@@ -126,25 +132,18 @@
 
         /* Ring animation behind volume icon */
     .wave-ring {
-        border-radius: 50%;
-        margin: auto;
-        animation: wave 1.5s infinite ease-in-out;
-        visibility: hidden; /* only shown when music is playing */
-    }
-
-    .wave-ring {
         width: 40px;
         height: 40px;
+        margin: auto;
         border-radius: 50%;
         background-color: #252830;
         animation: wave 1.8s infinite ease-in-out;
-        visibility: hidden;
+        visibility: hidden; /* only shown when music is playing */
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 15px;
         color: white;
-
         /* Position at top-right */
         position: fixed;
         top: 25px;
@@ -288,15 +287,52 @@
     }
 
     @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    .skip-feedback {
+        position: fixed;
+        top: 50%;
+        font-size: 36px;
+        color: #ffffff;
+        background: #252830;
+        padding: 12px 20px;
+        border-radius: 20px;
+        transform: translateY(-50%);
+        opacity: 0;
+        animation: skipFade 0.8s ease-out forwards;
+        pointer-events: none;
+        z-index: 99999;
+        box-shadow: 0 0 15px #333846;
+        font-weight: bold;
+        backdrop-filter: blur(4px);
+    }
+
+    .skip-feedback.left {
+        left: 10%;
+    }
+    .skip-feedback.right {
+        right: 10%;
+    }
+
+    @keyframes skipFade {
+        0% {
+            opacity: 0;
+            transform: translateY(-50%) scale(0.9);
+        }
+        30% {
+            opacity: 1;
+            transform: translateY(-55%) scale(1.1);
+        }
+        100% {
+            opacity: 0;
+            transform: translateY(-60%) scale(1);
+        }
     }
     </style>
-    <!--Keyboard Shortcuts (optional) 
-    Add Progressive Web App (PWA), a web application that behaves like 
-    a native app on mobile or desktop. Here's what it means for your music player
-    add music queue to play next
-    emotion and language filter:-->
+    <!-- Add Progressive Web App (PWA), a web application that behaves like 
+    a native app on mobile or desktop.-->
 </head>
 <body>
     <div id="player-container">
@@ -304,15 +340,15 @@
         <p id="track-title" style="user-select: auto !important;">Loading...</p>
         <div id="loading-spinner">⏳ Loading...</div>
 
-        <audio id="audio-player" controls autoplay></audio>
+        <audio id="audio-player" controls preload="none"></audio>
         <div id="volume-feedback">🔊 20%</div>
         
         <div class="controls">
-            <button id="shuffleBtn" aria-label="Shuffle" title="Shuffle" style="color: white;">🔀 On</button>
-            <button id="prevBtn" aria-label="Previous" title="Previous">⏮️</button>
-            <button id="playPauseBtn" aria-label="Play/Pause" title="Play/Pause">▶️</button>
-            <button id="nextBtn" aria-label="Next" title="Next">⏭️</button>
-            <button id="repeatBtn" aria-label="Repeat" title="Repeat" style="color: white;">🔁 On</button>
+            <button id="shuffleBtn" aria-label="Shuffle" title="Shuffle" class="active"><i class="fas fa-random"></i></button>
+            <button id="prevBtn" aria-label="Previous" title="Previous"><i class="fas fa-backward"></i></button>
+            <button id="playPauseBtn" aria-label="Play/Pause" title="Play/Pause"><i class="fas fa-play"></i></button>
+            <button id="nextBtn" aria-label="Next" title="Next"><i class="fas fa-forward"></i></button>
+            <button id="repeatBtn" aria-label="Repeat" title="Repeat" class="active"><i class="fas fa-repeat"></i></button>
         </div>
     </div>
     
@@ -338,105 +374,218 @@
     <div class="equalizer">
         <div></div><div></div><div></div><div></div><div></div><div></div>
     </div>
-
+    
     <script>
+        // Initialize global variables for player state
         let isShuffle = true;
         let isRepeat = true;
         let currentTrack = 0;
         let playedIndices = new Set();
+        let playlist = [];
+
+        // base url for the audio files
+        const baseURL = "https://archive.org/download/70s-special-mashup-devotees-insanos-chand-mera-dil-chadhti-jawani-meri-bheegi-bheegi-si-compressed/";
+        
+        // Loads the playlist JSON file, updates the playlist array, and calls initializePlayer() to start the player.
+        async function fetchPlaylist() {
+            try {
+                const response = await fetch('playlist.json'); // adjust path if needed
+                if (!response.ok) throw new Error("Failed to fetch playlist");
+                playlist = await response.json();
+                initializePlayer(); // call your existing setup
+            } catch (error) {
+                console.error("Error loading playlist:", error);
+                document.getElementById("track-title").textContent = "⚠️ Failed to load playlist";
+            }
+        }
+
+        // Fetch the playlist when the DOM is fully loaded
+        document.addEventListener("DOMContentLoaded", fetchPlaylist);
 
         // Button elements
-        const audioPlayer = document.getElementById('audio-player');
-        const trackTitle = document.getElementById('track-title');
+        const playPauseBtn = document.getElementById("playPauseBtn");
         const shuffleBtn = document.getElementById("shuffleBtn");
         const repeatBtn = document.getElementById("repeatBtn");
-        
-        const baseURL = "https://archive.org/download/70s-special-mashup-devotees-insanos-chand-mera-dil-chadhti-jawani-meri-bheegi-bheegi-si-compressed/";
-        const playlist = [
-            {
-                audio_id: "001",
-                file_name: "%27Abhi%20Toh%20Party%20Shuru%20Hui%20Hai%27%20FULL%20VIDEO%20Song%20%EF%BD%9C%20Khoobsurat%20%EF%BD%9C%20Badshah%20%EF%BD%9C%20Aastha_compressed.webm",
-                emotion:"Sad",
-                language:"Hindi"
-            },
-            {
-                audio_id: "0021",
-                file_name: "%23Video%20%EF%BD%9C%20%E0%A4%B9%E0%A4%BF%E0%A4%B0%E0%A5%8B%E0%A4%87%E0%A4%A8%20%EF%BD%9C%20%23Heroine%20with%20Lyrics%20%EF%BD%9C%20%23Neelkamal%20Singh%20New%20Song%20%EF%BD%9C%20Bhojpuri%20Gaana_compressed.webm",
-                emotion:"Sad",
-                language:"Hindi"
-            },
-            {
-                audio_id: "0031",
-                file_name: "%27Sooraj%20Dooba%20Hain%27%20FULL%20VIDEO%20SONG%20%EF%BD%9C%20Arijit%20singh%20Aditi%20Singh%20Sharma%20%EF%BD%9C%20T-SERIES_compressed.webm",
-                emotion:"Sad",
-                language:"Hindi"
-            },
-            {
-                audio_id: "0049",
-                file_name: "%27Tu%20Jo%20Mila%27%20VIDEO%20Song%20-%20K.K.%20Pritam%20%EF%BD%9C%20Salman%20Khan%2C%20Nawazuddin%2C%20Harshaali%20%EF%BD%9C%20Bajrangi%20Bhaijaan_compressed.webm",
-                emotion:"Sad",
-                language:"Hindi"
-            },
-            {
-                audio_id: "0054",
-                file_name: "3%20-%20Why%20This%20Kolaveri%20Di%20Official%20Video%20%EF%BD%9C%20Dhanush%20%EF%BD%9C%20Anirudh%20Ravichander%20%EF%BD%9C%20Shruti%20Haasan_compressed.webm",
-                emotion:"Sad",
-                language:"Hindi"
-            },
-            {
-                audio_id: "0060",
-                file_name: "90%27s%20Retro%20Mashup%20%EF%BD%9C%20Dj%20Parth%20%EF%BD%9C%20Sunix%20Thakor%20%EF%BD%9C%20Old%20Song%20Mashup%20%EF%BD%9C%20Music%20History%20Records_compressed.webm",
-                emotion:"Sad",
-                language:"Hindi"
-            },
-            {
-                audio_id: "0074",
-                file_name: "70s%20Special%20Mashup%E2%96%B6%20Devotees%20Insanos%20%EF%BD%9C%20Chand%20Mera%20Dil%20%EF%BD%9C%20Chadhti%20Jawani%20%EF%BD%9C%20Meri%20Bheegi%20Bheegi%20Si_compressed.webm",
-                emotion:"Sad",
-                language:"Hindi"
-            },
-            {
-                audio_id: "0080",
-                file_name: "AMBARSARIYA_compressed.webm",
-                emotion:"Sad",
-                language:"Hindi"
-            },
-            {
-                audio_id: "0094",
-                file_name: "Aadat%20%28From%20%EF%BC%82Kalyug%EF%BC%82%29_compressed.webm",
-                emotion:"Sad",
-                language:"Hindi"
-            },
-            {
-                audio_id: "0102",
-                file_name: "Aahun%20Aahun%20%28Lyrical%20Full%20Song%29%20%EF%BD%9C%20Love%20Aaj%20Kal%20%EF%BD%9C%20Saif%20Ali%20Khan%20%26%20Deepika%20Padukone%20%EF%BD%9C%20Pritam_compressed.webm",
-                emotion:"Sad",
-                language:"Hindi"
-            }
-        ];
+        const nextBtn = document.getElementById("nextBtn");
+        const prevBtn = document.getElementById("prevBtn");
+        // Audio player and track title elements
+        const audioPlayer = document.getElementById('audio-player');
+        const trackTitle = document.getElementById('track-title');
+        // Help overlay elements
+        const helpOverlay = document.getElementById("helpOverlay");
+        const helpClose = document.getElementById("helpClose");
 
+        // 	Sets up the audio player UI, event listeners, default settings, and loads the first track.
+        function initializePlayer() {
+            if (!playlist || playlist.length === 0) {
+                trackTitle.textContent = "⚠️ No tracks in playlist.";
+                return;
+            }
+            // Your current logic that depends on `playlist`
+            // e.g. volume setup, event listeners, initial load
+            audioPlayer.volume = parseFloat(localStorage.getItem('volume')) || 0.2;
+            isShuffle = localStorage.getItem('shuffle') !== 'false';
+            isRepeat = localStorage.getItem('repeat') !== 'false';
+
+            shuffleBtn.classList.toggle("active", isShuffle);
+            repeatBtn.classList.toggle("active", isRepeat);
+
+            loadTrack(currentTrack);
+
+            shuffleBtn.addEventListener("click", () => {
+                isShuffle = !isShuffle;
+                localStorage.setItem("shuffle", isShuffle);
+                shuffleBtn.classList.toggle("active");
+                shuffleBtn.setAttribute("aria-pressed", isShuffle); // ✅ Add this line
+                playedIndices.clear();
+                shuffleBtn.innerHTML = isShuffle ? '<i class="fas fa-random"></i>' : '<i class="fas fa-random" style="color: red;"></i> '; // Or use '➡️'
+                shuffleBtn.title = isShuffle ? "Shuffle ON" : "Shuffle OFF";
+            });
+            
+            repeatBtn.addEventListener("click", () => {
+                isRepeat = !isRepeat;
+                localStorage.setItem("repeat", isRepeat);
+                repeatBtn.classList.toggle("active");
+                repeatBtn.setAttribute("aria-pressed", isRepeat); // ✅ Add this line
+                repeatBtn.innerHTML = isRepeat ? '<i class="fas fa-repeat"></i>' : '<i class="fas fa-repeat" style="color: red;"></i>';  // Use 🚫 or '↩️' for OFF
+                repeatBtn.title = isRepeat ? "Repeat ON" : "Repeat OFF";
+            });
+            
+            nextBtn.addEventListener("click", nextTrack);
+            
+            prevBtn.addEventListener("click", prevTrack);
+            
+            playPauseBtn.addEventListener("click", togglePlayPause);
+            
+            audioPlayer.addEventListener("pause", () => {
+                trackTitle.classList.remove("playing");
+                playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+                playPauseBtn.title = "Play";
+                // document.querySelector('.wave-ring').style.visibility = 'hidden';
+                updateEqualizer(false);
+            });
+            
+            audioPlayer.addEventListener("play", () => {
+                trackTitle.classList.add("playing"); // 🔁 Add glow again on resume
+                playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
+                playPauseBtn.title = "Pause";
+                // const waveRing = document.querySelector('.wave-ring'); // uncomment the two lines if want waverings
+                // if (waveRing) waveRing.style.visibility = 'visible';
+                updateEqualizer(true);
+            });
+
+            audioPlayer.addEventListener("ended", () => {
+                trackTitle.classList.remove("playing");
+                if (isRepeat && !isShuffle) {
+                    loadTrack(currentTrack); // repeat same song
+                } else if (isShuffle && isRepeat) {
+                    playedIndices.clear(); // infinite shuffle
+                    nextTrack();
+                } else {
+                    nextTrack();
+                }
+                // document.querySelector('.wave-ring').style.visibility = 'hidden';
+                updateEqualizer(false);
+            });
+
+            // Initial setup
+            window.addEventListener("DOMContentLoaded", () => {
+                    // Set volume
+                    audioPlayer.volume = parseFloat(localStorage.getItem('volume')) || 0.2;
+
+                    // First-time visit logic
+                    if (localStorage.getItem('visited') !== 'true') {
+                        isShuffle = true;
+                        isRepeat = true;
+                        localStorage.setItem('shuffle', 'true');
+                        localStorage.setItem('repeat', 'true');
+                        localStorage.setItem('visited', 'true'); // mark as visited
+                    } else {
+                        isShuffle = localStorage.getItem('shuffle') === 'true';
+                        isRepeat = localStorage.getItem('repeat') === 'true';
+                    }
+
+                    // Reflect on UI
+                    shuffleBtn.classList.toggle("active", isShuffle);
+                    repeatBtn.classList.toggle("active", isRepeat);
+
+                    loadTrack(currentTrack);
+                });
+            
+            document.addEventListener("keydown", (e) => {
+                if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", " "].includes(e.key)) {
+                    e.preventDefault();
+                }
+
+                if (e.code === "Space") {
+                    togglePlayPause();
+                } else if (e.key.toLowerCase() === "n") {
+                    nextTrack();
+                } else if (e.key.toLowerCase() === "p") {
+                    prevTrack();
+                } else if (e.key === "ArrowLeft") {
+                    audioPlayer.currentTime = Math.max(0, audioPlayer.currentTime - 10);
+                } else if (e.key === "ArrowRight") {
+                    audioPlayer.currentTime = Math.min(audioPlayer.duration, audioPlayer.currentTime + 10);
+                } else if (e.key === "ArrowUp") {
+                    audioPlayer.volume = Math.min(1, audioPlayer.volume + 0.1);
+                    localStorage.setItem("volume", audioPlayer.volume);
+                    showVolumeFeedback(audioPlayer.volume);
+                } else if (e.key === "ArrowDown") {
+                    audioPlayer.volume = Math.max(0, audioPlayer.volume - 0.1);
+                    localStorage.setItem("volume", audioPlayer.volume);
+                    showVolumeFeedback(audioPlayer.volume);
+                } else if (e.key.toLowerCase() === 'h') {
+                    helpOverlay.classList.toggle("visible");
+                } else if (e.key === "Escape") {
+                    helpOverlay.classList.remove("visible");
+                }
+            });
+
+            document.body.addEventListener('dblclick', (e) => {
+                const x = e.clientX;
+                const width = window.innerWidth;
+                if (x < width / 2) {
+                    audioPlayer.currentTime = Math.max(0, audioPlayer.currentTime - 10);
+                    showSkipFeedback('backward');
+                } else {
+                    audioPlayer.currentTime = Math.min(audioPlayer.duration, audioPlayer.currentTime + 10);
+                    showSkipFeedback('forward');
+                }
+            });
+
+            helpClose.addEventListener("click", () => {
+            helpOverlay.classList.remove("visible");
+            });
+
+            audioPlayer.addEventListener("waiting", () => {
+                document.getElementById("loading-spinner").classList.add("show");
+            });
+            
+            audioPlayer.addEventListener("playing", () => {
+                document.getElementById("loading-spinner").classList.remove("show");
+            });
+        }
+
+        // Decodes and cleans up a filename into a more readable track title.
         function decodeTitle(fileName) {
             try {
                 // Decode URI and remove `_compressed.webm` or similar suffix
-                const decoded = decodeURIComponent(fileName);
-                return decoded.replace(/_compressed\.webm$/i, '').replace(/\.webm$/i, '');
+                const decoded = decodeURIComponent(fileName).replace(/\+/g, ' ');
+                return decoded.replace(/(_compressed)?\.webm$/i, '');
             } catch (e) {
                 return "Unknown Title";
             }
         }
         
-        function unloadAudio() {
-        audioPlayer.pause(); // stops any playing
-        audioPlayer.removeAttribute('src'); // removes the current source
-        audioPlayer.load(); // tells browser to reset the player
-        }
-        
+        // Loads and plays a specific track by index from the playlist. Also updates UI and media metadata.
         function loadTrack(index) {
+            if (!playlist[index]) return console.warn("Invalid track index:", index);
             unloadAudio();  // 🔁 Unload previous track to free memory
             const fileName = playlist[index].file_name;
             const url = baseURL + fileName;
             currentTrack = index;
-            trackTitle.textContent = decodeTitle(fileName);
+            trackTitle.textContent = `🎵 ${decodeTitle(fileName)}`; // can add inside string (${track.emotion}, ${track.language})
             audioPlayer.src = url;
             audioPlayer.play().then(() => {
                 fadeInVolume(parseFloat(localStorage.getItem("volume")) || 0.2);
@@ -445,6 +594,14 @@
             trackTitle.classList.add("playing"); // 💡 add glowing effect
         }
         
+        // Stops the audio player and resets its source — used before loading a new track.
+        function unloadAudio() {
+        audioPlayer.pause(); // stops any playing
+        audioPlayer.removeAttribute('src'); // removes the current source
+        audioPlayer.load(); // tells browser to reset the player
+        }
+        
+        // Moves to the next track in the playlist, with support for shuffle and repeat logic.
         function nextTrack() {
             if (isShuffle) {
                 if (playedIndices.size >= playlist.length) {
@@ -466,100 +623,51 @@
             }
         }
         
+        // Goes to the previous track in the playlist (or wraps to the end if at start).
         function prevTrack() {
             currentTrack = (currentTrack - 1 + playlist.length) % playlist.length;
             loadTrack(currentTrack);
         }
         
+        // Toggles between playing and pausing the audio.
         function togglePlayPause() {
             if (audioPlayer.paused) {
                 audioPlayer.play();
-                trackTitle.classList.add("playing"); // 💡 add glowing effect
             } else {
                 audioPlayer.pause();
             }
         }
 
-        
-        shuffleBtn.addEventListener("click", () => {
-            isShuffle = !isShuffle;
-            localStorage.setItem("shuffle", isShuffle);
-            shuffleBtn.classList.toggle("active");
-            shuffleBtn.setAttribute("aria-pressed", isShuffle); // ✅ Add this line
-            document.getElementById("shuffleBtn").textContent = isShuffle ? "🔀 On" : "🔀 Off";
-            playedIndices.clear();
-        });
-        
-        repeatBtn.addEventListener("click", () => {
-            isRepeat = !isRepeat;
-            localStorage.setItem("repeat", isRepeat);
-            repeatBtn.classList.toggle("active");
-            repeatBtn.setAttribute("aria-pressed", isRepeat); // ✅ Add this line
-            document.getElementById("repeatBtn").textContent = isRepeat ? "🔁 On" : "🔁 Off";    });
-            document.getElementById("nextBtn").addEventListener("click", nextTrack);
-            document.getElementById("prevBtn").addEventListener("click", prevTrack);
-            document.getElementById("playPauseBtn").addEventListener("click", togglePlayPause);
-        
-        audioPlayer.addEventListener("pause", () => {
-            trackTitle.classList.remove("playing");
-            document.querySelector('.wave-ring').style.visibility = 'hidden';
-        });
-
-        audioPlayer.addEventListener("play", () => {
-            trackTitle.classList.add("playing"); // 🔁 Add glow again on resume
-            document.querySelector('.wave-ring').style.visibility = 'visible';
-        });
-
-        audioPlayer.addEventListener("ended", () => {
-            trackTitle.classList.remove("playing");
-            if (isRepeat && !isShuffle) {
-                loadTrack(currentTrack); // repeat same song
-            } else if (isShuffle && isRepeat) {
-                playedIndices.clear(); // infinite shuffle
-                nextTrack();
-            } else {
-                nextTrack();
-            }
-            document.querySelector('.wave-ring').style.visibility = 'hidden';
-        });
-
-        // Toggle equalizer visibility based on play/pause
+        // 	Shows or hides a visual equalizer effect depending on playback status.
         function updateEqualizer(isPlaying) {
             const equalizer = document.querySelector(".equalizer");
             equalizer.style.visibility = isPlaying ? "visible" : "hidden";
         }
 
-        // Hook into audio events
-        audioPlayer.addEventListener("play", () => updateEqualizer(true));
-        audioPlayer.addEventListener("pause", () => updateEqualizer(false));
-        audioPlayer.addEventListener("ended", () => updateEqualizer(false));
-
-    // Initial setup
-    window.addEventListener("DOMContentLoaded", () => {
-        // Set volume
-        audioPlayer.volume = parseFloat(localStorage.getItem('volume')) || 0.2;
-
-        // First-time visit logic
-        if (localStorage.getItem('visited') !== 'true') {
-            isShuffle = true;
-            isRepeat = true;
-            localStorage.setItem('shuffle', 'true');
-            localStorage.setItem('repeat', 'true');
-            localStorage.setItem('visited', 'true'); // mark as visited
-        } else {
-            isShuffle = localStorage.getItem('shuffle') === 'true';
-            isRepeat = localStorage.getItem('repeat') === 'true';
+        // 	Smoothly increases the volume to the target value for a fade-in effect.
+        function fadeInVolume(targetVolume = 0.2, step = 0.02, interval = 50) {
+            const fade = setInterval(() => {
+                if (audioPlayer.volume < targetVolume) {
+                    audioPlayer.volume = Math.min(audioPlayer.volume + step, targetVolume);
+                } else {
+                    clearInterval(fade);
+                }
+            }, interval);
         }
 
-        // Reflect on UI
-        shuffleBtn.classList.toggle("active", isShuffle);
-        repeatBtn.classList.toggle("active", isRepeat);
-        shuffleBtn.textContent = isShuffle ? "🔀 On" : "🔀 Off";
-        repeatBtn.textContent = isRepeat ? "🔁 On" : "🔁 Off";
-
-        loadTrack(currentTrack);
-    });
-
+        // Shows a visual “⮜⮞ 10s” feedback when user skips backward or forward.
+        function showSkipFeedback(direction = 'forward') {
+            const feedback = document.createElement('div');
+            feedback.classList.add('skip-feedback');
+            feedback.classList.add(direction === 'backward' ? 'left' : 'right');
+            feedback.textContent = direction === 'backward' ? '⮜ 10s' : '⮞ 10s';
+            document.body.appendChild(feedback);
+            setTimeout(() => {
+                feedback.remove();
+            }, 800); // match with animation duration
+        }
+    
+        // Displays on-screen volume percentage when volume is adjusted.
         function showVolumeFeedback(volume) {
             const feedback = document.getElementById("volume-feedback");
             if (!feedback) return;
@@ -573,93 +681,27 @@
                 feedback.classList.remove("show");
             }, 1200);
         }
-
-        document.addEventListener("keydown", (e) => {
-            if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", " "].includes(e.key)) {
-                e.preventDefault();
-            }
-
-            if (e.code === "Space") {
-                togglePlayPause();
-            } else if (e.key.toLowerCase() === "n") {
-                nextTrack();
-            } else if (e.key.toLowerCase() === "p") {
-                prevTrack();
-            } else if (e.key === "ArrowLeft") {
-                audioPlayer.currentTime = Math.max(0, audioPlayer.currentTime - 10);
-            } else if (e.key === "ArrowRight") {
-                audioPlayer.currentTime = Math.min(audioPlayer.duration, audioPlayer.currentTime + 10);
-            } else if (e.key === "ArrowUp") {
-                audioPlayer.volume = Math.min(1, audioPlayer.volume + 0.1);
-                localStorage.setItem("volume", audioPlayer.volume);
-                showVolumeFeedback(audioPlayer.volume);
-            } else if (e.key === "ArrowDown") {
-                audioPlayer.volume = Math.max(0, audioPlayer.volume - 0.1);
-                localStorage.setItem("volume", audioPlayer.volume);
-                showVolumeFeedback(audioPlayer.volume);
-            }
-        });
-
-        document.body.addEventListener('dblclick', (e) => {
-            const x = e.clientX;
-            const width = window.innerWidth;
-            if (x < width / 2) {
-                audioPlayer.currentTime = Math.max(0, audioPlayer.currentTime - 10);
-            } else {
-                audioPlayer.currentTime = Math.min(audioPlayer.duration, audioPlayer.currentTime + 10);
-            }
-        });
-
-        const helpOverlay = document.getElementById("helpOverlay");
-        const helpClose = document.getElementById("helpClose");
-
-        document.addEventListener("keydown", (e) => {
-        if (e.key.toLowerCase() === 'h') {
-            helpOverlay.classList.toggle("visible");
-        } else if (e.key === "Escape") {
-            helpOverlay.classList.remove("visible");
-        }
-        });
-
-        helpClose.addEventListener("click", () => {
-        helpOverlay.classList.remove("visible");
-        });
-
-        function fadeInVolume(targetVolume = 0.2, step = 0.02, interval = 50) {
-            audioPlayer.volume = 0;
-            const fade = setInterval(() => {
-                if (audioPlayer.volume < targetVolume) {
-                    audioPlayer.volume = Math.min(audioPlayer.volume + step, targetVolume);
-                } else {
-                    clearInterval(fade);
-                }
-            }, interval);
-        }
-
+    
+        // Integrates with browser Media Session API to control media playback using system media buttons.
         function updateMediaSession(title, artist = "TheSoftMax.com", album = "My Playlist") {
-        if ('mediaSession' in navigator) {
-            navigator.mediaSession.metadata = new MediaMetadata({
-            title: title,
-            artist: artist,
-            album: album,
-            artwork: [
-                { src: 'favicon.svg', sizes: '96x96', type: 'image/svg+xml' }
-            ]
-            });
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.metadata = new MediaMetadata({
+                title: title,
+                artist: artist,
+                album: album,
+                artwork: [
+                    { src: 'favicon.svg', sizes: '96x96', type: 'image/svg+xml' }
+                ]
+                });
 
-            navigator.mediaSession.setActionHandler('play', () => audioPlayer.play());
-            navigator.mediaSession.setActionHandler('pause', () => audioPlayer.pause());
-            navigator.mediaSession.setActionHandler('previoustrack', prevTrack);
-            navigator.mediaSession.setActionHandler('nexttrack', nextTrack);
+                navigator.mediaSession.setActionHandler('play', () => audioPlayer.play());
+                navigator.mediaSession.setActionHandler('pause', () => audioPlayer.pause());
+                navigator.mediaSession.setActionHandler('previoustrack', prevTrack);
+                navigator.mediaSession.setActionHandler('nexttrack', nextTrack);
+            }else {
+                console.warn("Media Session API not supported in this browser.");
+            }
         }
-        }
-
-        audioPlayer.addEventListener("waiting", () => {
-            document.getElementById("loading-spinner").classList.add("show");
-        });
-        audioPlayer.addEventListener("playing", () => {
-            document.getElementById("loading-spinner").classList.remove("show");
-        });
-    </script>
+</script>
 </body>
 </html>
