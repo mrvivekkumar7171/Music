@@ -27,7 +27,17 @@
         background-color: #131417;
         color: #fff;
         text-align: center;
-        padding: 40px;
+        padding: 40px 0 40px 0!important;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+        }
+
+        html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
         }
 
         h2 {
@@ -43,6 +53,7 @@
         width: 100%;
         max-width: 600px;
         margin: 20px auto;
+        margin-top: 30px !important;
         display: block;
         }
 
@@ -93,7 +104,6 @@
     /* Apply whiteGlow when playing */
     #track-title.playing {
     animation: whiteGlow 1.5s infinite alternate;
-    display: inline-block; /* ← add this */
     }
 
     #volume-feedback {
@@ -290,12 +300,12 @@
 </head>
 <body>
     <div id="player-container">
-        <h2>Music Player</h2>
-        <p id="track-title">Loading...</p>
+        <!-- <h2>Music Player</h2> -->
+        <p id="track-title" style="user-select: auto !important;">Loading...</p>
         <div id="loading-spinner">⏳ Loading...</div>
 
         <audio id="audio-player" controls autoplay></audio>
-        <div id="volume-feedback">🔊 40%</div>
+        <div id="volume-feedback">🔊 20%</div>
         
         <div class="controls">
             <button id="shuffleBtn" aria-label="Shuffle" title="Shuffle" style="color: white;">🔀 On</button>
@@ -305,29 +315,29 @@
             <button id="repeatBtn" aria-label="Repeat" title="Repeat" style="color: white;">🔁 On</button>
         </div>
     </div>
-    <!-- <div class="equalizer">
-        <div></div><div></div><div></div><div></div><div></div><div></div>
-    </div> -->
-
+    
     <div id="helpOverlay">
-    <div id="helpClose">&times;</div>
-    <div id="helpContent">
-        <h2>🎧 Keyboard Shortcuts Help</h2>
-        <ul>
-        <li><b>H</b> – Show/Hide Help Overlay</li>
-        <li><b>Space</b> – Play / Pause</li>
-        <li><b>← / →</b> – Seek Backward / Forward</li>
-        <li><b>↑ / ↓</b> – Volume Up / Down</li>
-        <li><b>N</b> – Next Track</li>
-        <li><b>P</b> – Previous Track</li>
-        <li><b>S</b> – Toggle Shuffle</li>
-        <li><b>R</b> – Toggle Repeat</li>
-        <li><b>Esc</b> – Close Help Overlay</li>
-        </ul>
-    </div>
+        <div id="helpClose">&times;</div>
+        <div id="helpContent">
+            <h2>🎧 Keyboard Shortcuts Help</h2>
+            <ul>
+                <li><b>H</b> – Show/Hide Help Overlay</li>
+                <li><b>Space</b> – Play / Pause</li>
+                <li><b>← / →</b> – Seek Backward / Forward</li>
+                <li><b>↑ / ↓</b> – Volume Up / Down</li>
+                <li><b>N</b> – Next Track</li>
+                <li><b>P</b> – Previous Track</li>
+                <li><b>S</b> – Toggle Shuffle</li>
+                <li><b>R</b> – Toggle Repeat</li>
+                <li><b>Esc</b> – Close Help Overlay</li>
+            </ul>
+        </div>
     </div>
 
-    <div class="wave-ring">🔊</div>
+    <!-- <div class="wave-ring">🔊</div> -->
+    <div class="equalizer">
+        <div></div><div></div><div></div><div></div><div></div><div></div>
+    </div>
 
     <script>
         let isShuffle = true;
@@ -429,7 +439,7 @@
             trackTitle.textContent = decodeTitle(fileName);
             audioPlayer.src = url;
             audioPlayer.play().then(() => {
-                fadeInVolume(parseFloat(localStorage.getItem("volume")) || 0.4);
+                fadeInVolume(parseFloat(localStorage.getItem("volume")) || 0.2);
             });
             updateMediaSession(trackTitle.textContent);
             trackTitle.classList.add("playing"); // 💡 add glowing effect
@@ -496,13 +506,12 @@
         });
 
         audioPlayer.addEventListener("play", () => {
-            document.querySelector('.wave-ring').style.visibility = 'visible';
             trackTitle.classList.add("playing"); // 🔁 Add glow again on resume
+            document.querySelector('.wave-ring').style.visibility = 'visible';
         });
 
         audioPlayer.addEventListener("ended", () => {
             trackTitle.classList.remove("playing");
-            document.querySelector('.wave-ring').style.visibility = 'hidden';
             if (isRepeat && !isShuffle) {
                 loadTrack(currentTrack); // repeat same song
             } else if (isShuffle && isRepeat) {
@@ -511,6 +520,7 @@
             } else {
                 nextTrack();
             }
+            document.querySelector('.wave-ring').style.visibility = 'hidden';
         });
 
         // Toggle equalizer visibility based on play/pause
@@ -524,24 +534,31 @@
         audioPlayer.addEventListener("pause", () => updateEqualizer(false));
         audioPlayer.addEventListener("ended", () => updateEqualizer(false));
 
-        // Initial setup
-        window.addEventListener("DOMContentLoaded", () => {
-            audioPlayer.volume = 0.2; // default to 40% volume
-            shuffleBtn.classList.add("active");
-            repeatBtn.classList.add("active");
+    // Initial setup
+    window.addEventListener("DOMContentLoaded", () => {
+        // Set volume
+        audioPlayer.volume = parseFloat(localStorage.getItem('volume')) || 0.2;
+
+        // First-time visit logic
+        if (localStorage.getItem('visited') !== 'true') {
             isShuffle = true;
             isRepeat = true;
-            loadTrack(currentTrack);
-            // Load saved settings
-            audioPlayer.volume = parseFloat(localStorage.getItem('volume')) || 0.4;
+            localStorage.setItem('shuffle', 'true');
+            localStorage.setItem('repeat', 'true');
+            localStorage.setItem('visited', 'true'); // mark as visited
+        } else {
             isShuffle = localStorage.getItem('shuffle') === 'true';
             isRepeat = localStorage.getItem('repeat') === 'true';
+        }
 
-            shuffleBtn.classList.toggle("active", isShuffle);
-            repeatBtn.classList.toggle("active", isRepeat);
-            shuffleBtn.textContent = isShuffle ? "🔀 On" : "🔀 Off";
-            repeatBtn.textContent = isRepeat ? "🔁 On" : "🔁 Off";
-        });
+        // Reflect on UI
+        shuffleBtn.classList.toggle("active", isShuffle);
+        repeatBtn.classList.toggle("active", isRepeat);
+        shuffleBtn.textContent = isShuffle ? "🔀 On" : "🔀 Off";
+        repeatBtn.textContent = isRepeat ? "🔁 On" : "🔁 Off";
+
+        loadTrack(currentTrack);
+    });
 
         function showVolumeFeedback(volume) {
             const feedback = document.getElementById("volume-feedback");
@@ -583,11 +600,10 @@
             }
         });
 
-        const container = document.getElementById('player-container');
-        container.addEventListener('dblclick', (e) => {
-            const { offsetX, target } = e;
-            const width = target.offsetWidth;
-            if (offsetX < width / 2) {
+        document.body.addEventListener('dblclick', (e) => {
+            const x = e.clientX;
+            const width = window.innerWidth;
+            if (x < width / 2) {
                 audioPlayer.currentTime = Math.max(0, audioPlayer.currentTime - 10);
             } else {
                 audioPlayer.currentTime = Math.min(audioPlayer.duration, audioPlayer.currentTime + 10);
@@ -609,7 +625,7 @@
         helpOverlay.classList.remove("visible");
         });
 
-        function fadeInVolume(targetVolume = 0.4, step = 0.02, interval = 50) {
+        function fadeInVolume(targetVolume = 0.2, step = 0.02, interval = 50) {
             audioPlayer.volume = 0;
             const fade = setInterval(() => {
                 if (audioPlayer.volume < targetVolume) {
