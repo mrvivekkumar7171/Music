@@ -360,6 +360,7 @@
             <button id="playPauseBtn" aria-label="Play/Pause" title="Play/Pause"><i class="fas fa-play"></i></button>
             <button id="nextBtn" aria-label="Next" title="Next"><i class="fas fa-forward"></i></button>
             <button id="repeatBtn" aria-label="Repeat" title="Repeat" class="active"><i class="fas fa-repeat"></i></button>
+            <button id="settingsBtn" aria-label="Settings" title="Settings"><i class="fas fa-cog"></i></button>
         </div>
         <div id="loading-spinner">⏳ Loading...</div>
     </div>
@@ -467,7 +468,6 @@
                 trackTitle.classList.remove("playing");
                 playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
                 playPauseBtn.title = "Play";
-                // document.querySelector('.wave-ring').style.visibility = 'hidden';
                 updateEqualizer(false);
             });
             
@@ -475,8 +475,6 @@
                 trackTitle.classList.add("playing"); // 🔁 Add glow again on resume
                 playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
                 playPauseBtn.title = "Pause";
-                // const waveRing = document.querySelector('.wave-ring'); // uncomment the two lines if want waverings
-                // if (waveRing) waveRing.style.visibility = 'visible';
                 updateEqualizer(true);
             });
 
@@ -490,7 +488,6 @@
                 } else {
                     nextTrack();
                 }
-                // document.querySelector('.wave-ring').style.visibility = 'hidden';
                 updateEqualizer(false);
             });
 
@@ -591,7 +588,9 @@
             const fileName = playlist[index].file_name;
             const url = baseURL + fileName;
             currentTrack = index;
-            trackTitle.textContent = `🎵 ${decodeTitle(fileName)}`; // can add inside string (${track.emotion}, ${track.language})
+            const emojis = ['🎧','🎶','🎵','🎼','🎹','🎷','🎺','🎸','🎻','🥁','📻','🪕'];
+            const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+            trackTitle.textContent = `${randomEmoji} ${decodeTitle(fileName)} ｜ ${playlist[index].emotion} ｜ 🌏 ${playlist[index].language}`; // can add inside string 
             audioPlayer.src = url;
             audioPlayer.play().then(() => {
                 fadeInVolume(parseFloat(localStorage.getItem("volume")) || 0.2);
