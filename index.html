@@ -21,7 +21,7 @@
     
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <link rel="icon" href="favicon.png" type="image/png"> <!-- Fallback for older browsers -->
+    <link rel="icon" type="image/png" href="favicon.png"> <!-- Fallback for older browsers due to svg format-->
     
     <!-- css -->
     <style>
@@ -35,6 +35,9 @@
         -moz-user-select: none;
         -ms-user-select: none;
         user-select: none;
+        display: flex;
+        justify-content: center; /* horizontal center */
+        align-items: center;     /* vertical center */
         }
 
         html, body {
@@ -78,7 +81,7 @@
 
         .controls button {
         font-size: 24px;
-        padding: 8px 12px;
+        padding: 8px 12px 7px 12px;
         border: none;
         border-radius: 10px;
         cursor: pointer;
@@ -118,13 +121,15 @@
         right: 20px;
         background-color: #252830;
         color: white;
-        padding: 8px 16px;
+        padding: 4px 10px;
         font-size: 16px;
         border-radius: 8px;
         opacity: 0;
         transition: opacity 0.3s ease;
         z-index: 9999;
         pointer-events: none;
+        min-width: 60px;
+        text-align: center;
     }
     #volume-feedback.show {
         opacity: 1;
@@ -172,12 +177,14 @@
     gap: 4px;
     height: 20px;
     align-items: flex-end;
-    visibility: hidden; /* only visible when playing */
+    visibility: hidden;
     position: fixed;
     top: 20px;
     right: 20px;
     z-index: 10000;
     transform: scaleX(-1); /* flip horizontally so base is at right */
+    min-width: 60px;
+    justify-content: center;
     }
 
     .equalizer div {
@@ -205,18 +212,23 @@
             padding: 6px 10px;
         }
         #volume-feedback {
-            font-size: 14px;
+            font-size: 12px;
+            min-width: 50px;
+            padding: 3px 8px;
+        }
+        .equalizer {
+            min-width: 50px;
         }
     }
 
     #loading-spinner {
-        display: none;
-        position: absolute;
-        top: 50%;
+        position: absolute;  /* Take it out of flow */
+        bottom: -50px;        /* Show below the container */
         left: 50%;
+        transform: translateX(-50%);
         font-size: 18px;
-        transform: translate(-50%, -50%);
-        margin-top: 5px;
+        text-align: center;
+        display: none;
     }
     #loading-spinner.show {
         display: block;
@@ -248,11 +260,11 @@
     background: #252830;
     border-radius: 12px;
     padding: 30px;
-    box-shadow: 0 0 20px rgba(21, 129, 245, 0.5);
+    box-shadow: 0 0 20px #252830;
     }
 
     #helpContent h2 {
-    color: #1581f5;
+    color: #252830;
     margin-bottom: 20px;
     text-align: center;
     }
@@ -294,52 +306,51 @@
     .skip-feedback {
         position: fixed;
         top: 50%;
-        font-size: 36px;
-        color: #ffffff;
-        background: #252830;
-        padding: 12px 20px;
-        border-radius: 20px;
         transform: translateY(-50%);
-        opacity: 0;
-        animation: skipFade 0.8s ease-out forwards;
-        pointer-events: none;
-        z-index: 99999;
-        box-shadow: 0 0 15px #333846;
-        font-weight: bold;
-        backdrop-filter: blur(4px);
+        background: #252830;
+        color: white;
+        padding: 5px 10px 4px 10px;
+        border-radius: 10px;
+        font-size: 1.2rem;
+        z-index: 9999;
+        min-width: 65px;
+        animation: fadeOut 0.8s forwards;
     }
 
     .skip-feedback.left {
-        left: 10%;
-    }
-    .skip-feedback.right {
-        right: 10%;
+        left: 20px;
     }
 
-    @keyframes skipFade {
-        0% {
-            opacity: 0;
-            transform: translateY(-50%) scale(0.9);
-        }
-        30% {
-            opacity: 1;
-            transform: translateY(-55%) scale(1.1);
-        }
-        100% {
-            opacity: 0;
-            transform: translateY(-60%) scale(1);
+    .skip-feedback.right {
+        right: 20px;
+    }
+
+    @keyframes fadeOut {
+        0% { opacity: 1; }
+        100% { opacity: 0; }
+    }
+
+    #audio-player {
+        width: 45vw;
+        max-width: 80vw;
+    }
+
+    @media (max-width: 768px) {
+        #audio-player {
+            width: 80vw;
         }
     }
+
+    #player-container {
+        position: relative; /* Add this */
+    }
     </style>
-    <!-- Add Progressive Web App (PWA), a web application that behaves like 
-    a native app on mobile or desktop.-->
 </head>
 <body>
     <div id="player-container">
         <!-- <h2>Music Player</h2> -->
         <p id="track-title" style="user-select: auto !important;">Loading...</p>
-        <div id="loading-spinner">⏳ Loading...</div>
-
+        
         <audio id="audio-player" controls preload="none"></audio>
         <div id="volume-feedback">🔊 20%</div>
         
@@ -350,6 +361,7 @@
             <button id="nextBtn" aria-label="Next" title="Next"><i class="fas fa-forward"></i></button>
             <button id="repeatBtn" aria-label="Repeat" title="Repeat" class="active"><i class="fas fa-repeat"></i></button>
         </div>
+        <div id="loading-spinner">⏳ Loading...</div>
     </div>
     
     <div id="helpOverlay">
@@ -591,7 +603,6 @@
                 fadeInVolume(parseFloat(localStorage.getItem("volume")) || 0.2);
             });
             updateMediaSession(trackTitle.textContent);
-            trackTitle.classList.add("playing"); // 💡 add glowing effect
         }
         
         // Stops the audio player and resets its source — used before loading a new track.
@@ -660,7 +671,9 @@
             const feedback = document.createElement('div');
             feedback.classList.add('skip-feedback');
             feedback.classList.add(direction === 'backward' ? 'left' : 'right');
-            feedback.textContent = direction === 'backward' ? '⮜ 10s' : '⮞ 10s';
+            feedback.innerHTML = direction === 'backward'
+                ? '<i class="fas fa-backward"></i> 10s'
+                : '<i class="fas fa-forward"></i> 10s';
             document.body.appendChild(feedback);
             setTimeout(() => {
                 feedback.remove();
