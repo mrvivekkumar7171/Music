@@ -42,8 +42,7 @@
 
         html, body {
         height: 100%;
-        margin: 0;
-        padding: 0;
+        overflow: hidden;
         }
 
         h2 {
@@ -382,7 +381,7 @@
         </div>
     </div>
 
-    <!-- <div class="wave-ring">🔊</div> -->
+    <div class="wave-ring">🔊</div>
     <div class="equalizer">
         <div></div><div></div><div></div><div></div><div></div><div></div>
     </div>
@@ -411,9 +410,6 @@
             }
         }
 
-        // Fetch the playlist when the DOM is fully loaded
-        document.addEventListener("DOMContentLoaded", fetchPlaylist);
-
         // Button elements
         const playPauseBtn = document.getElementById("playPauseBtn");
         const shuffleBtn = document.getElementById("shuffleBtn");
@@ -433,15 +429,12 @@
                 trackTitle.textContent = "⚠️ No tracks in playlist.";
                 return;
             }
-            // Your current logic that depends on `playlist`
-            // e.g. volume setup, event listeners, initial load
+
             audioPlayer.volume = parseFloat(localStorage.getItem('volume')) || 0.2;
             isShuffle = localStorage.getItem('shuffle') !== 'false';
             isRepeat = localStorage.getItem('repeat') !== 'false';
-
             shuffleBtn.classList.toggle("active", isShuffle);
             repeatBtn.classList.toggle("active", isRepeat);
-
             loadTrack(currentTrack);
 
             shuffleBtn.addEventListener("click", () => {
@@ -651,8 +644,22 @@
 
         // 	Shows or hides a visual equalizer effect depending on playback status.
         function updateEqualizer(isPlaying) {
-            const equalizer = document.querySelector(".equalizer");
-            equalizer.style.visibility = isPlaying ? "visible" : "hidden";
+            const equalizer = document.querySelector('.equalizer');
+            const waveRing = document.querySelector('.wave-ring');
+            const mode = localStorage.getItem('visualizer') || 'equalizer';
+
+            if (isPlaying) {
+                if (mode === 'equalizer') {
+                    equalizer.style.visibility = 'visible';
+                    waveRing.style.visibility = 'hidden';
+                } else {
+                    equalizer.style.visibility = 'hidden';
+                    waveRing.style.visibility = 'visible';
+                }
+            } else {
+                equalizer.style.visibility = 'hidden';
+                waveRing.style.visibility = 'hidden';
+            }
         }
 
         // 	Smoothly increases the volume to the target value for a fade-in effect.
@@ -666,7 +673,7 @@
             }, interval);
         }
 
-        // Shows a visual “⮜⮞ 10s” feedback when user skips backward or forward.
+        // Shows a visual feedback when user skips backward or forward.
         function showSkipFeedback(direction = 'forward') {
             const feedback = document.createElement('div');
             feedback.classList.add('skip-feedback');
@@ -715,6 +722,56 @@
                 console.warn("Media Session API not supported in this browser.");
             }
         }
+
+        // Initialize the help overlay toggle
+        function initAnimationToggle(audioPlayer) {
+            const waveRing = document.querySelector('.wave-ring');
+            const equalizer = document.querySelector('.equalizer');
+            
+            let currentMode = localStorage.getItem('visualizer') || 'equalizer';
+            
+            function showAnimation(mode) {
+                if (!audioPlayer.paused) {
+                    // only show if playing
+                    if (mode === 'equalizer') {
+                        equalizer.style.visibility = 'visible';
+                        waveRing.style.visibility = 'hidden';
+                    } else {
+                        waveRing.style.visibility = 'visible';
+                        equalizer.style.visibility = 'hidden';
+                    }
+                    localStorage.setItem('visualizer', mode);
+                }
+                localStorage.setItem('visualizer', mode);
+            }
+
+            // Toggle on click
+            waveRing.addEventListener('click', () => {
+                showAnimation('equalizer');
+            });
+
+            equalizer.addEventListener('click', () => {
+                showAnimation('wave-ring');
+            });
+
+            // Only show when music is playing
+            audioPlayer.addEventListener('play', () => {
+                showAnimation(currentMode);
+            });
+
+            // Hide both on pause
+            audioPlayer.addEventListener('pause', () => {
+                waveRing.style.visibility = 'hidden';
+                equalizer.style.visibility = 'hidden';
+            });
+        }
+
+        // Call after player initialized
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchPlaylist().then(() => {
+                initAnimationToggle(audioPlayer);
+            });
+        });
 </script>
 </body>
 </html>
