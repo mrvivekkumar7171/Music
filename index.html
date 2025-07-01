@@ -21,9 +21,13 @@
     <title>Music Player</title>
     <meta name="description" content="An immersive music player with shuffle, loop, and volume control features.">
     
+    <!-- Progressive Web App (PWA) -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#000000">
+
     <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <link rel="icon" type="image/png" href="favicon.png"> <!-- Fallback for older browsers due to svg format-->
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+    <link rel="icon" type="image/png" href="assets/favicon.png"> <!-- Fallback for older browsers due to svg format-->
     
     <!-- css -->
     <style>
@@ -977,7 +981,7 @@
                     artist: artist,
                     album: album,
                     artwork: [
-                        { src: 'favicon.svg', sizes: '96x96', type: 'image/svg+xml' }
+                        { src: 'assets/favicon.svg', sizes: '96x96', type: 'image/svg+xml' }
                     ]
                     });
 
@@ -1089,6 +1093,14 @@
                     cursor.classList.remove('hover');
                 });
             });
+        
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('/service-worker.js')
+                    .then(reg => console.log('Service Worker registered!', reg))
+                    .catch(err => console.error('Service Worker registration failed:', err));
+                });
+                }
         </script>
     </body>
 
