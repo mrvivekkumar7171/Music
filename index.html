@@ -1073,27 +1073,31 @@
             document.getElementById("settingsClose").addEventListener("click", () => {
                 document.getElementById("settingsMenu").style.display = "none";
             });
-        
-            const cursor = document.querySelector('.custom-cursor');
-            let mouseX = 0, mouseY = 0;
 
-            document.addEventListener('mousemove', (e) => {
-                const { clientX, clientY } = e;
-                cursor.style.transform = `translate(${clientX}px, ${clientY}px)`;
-            });
+            // Check if the device is a touch device (mobile/tablet)
+            const isTouchDevice = window.matchMedia("(pointer: coarse)").matches;
+            if (!isTouchDevice) {
+                const cursor = document.querySelector('.custom-cursor');
+                let mouseX = 0, mouseY = 0;
 
-            // Detect hover on clickable elements
-            const clickable = ['a', 'button', 'input', '.clickable'];
-
-            document.querySelectorAll(clickable.join(',')).forEach(el => {
-                el.addEventListener('mouseenter', () => {
-                    cursor.classList.add('hover');
+                document.addEventListener('mousemove', (e) => {
+                    const { clientX, clientY } = e;
+                    cursor.style.transform = `translate(${clientX}px, ${clientY}px)`;
                 });
-                el.addEventListener('mouseleave', () => {
-                    cursor.classList.remove('hover');
+
+                // Detect hover on clickable elements
+                const clickable = ['a', 'button', 'input', '.clickable'];
+                document.querySelectorAll(clickable.join(',')).forEach(el => {
+                    el.addEventListener('mouseenter', () => {
+                        cursor.classList.add('hover');
+                    });
+                    el.addEventListener('mouseleave', () => {
+                        cursor.classList.remove('hover');
+                    });
                 });
-            });
-        
+            }
+
+            // Service worker registration (this runs for all devices)
             if ('serviceWorker' in navigator) {
                 window.addEventListener('load', () => {
                     navigator.serviceWorker.register('/service-worker.js')
